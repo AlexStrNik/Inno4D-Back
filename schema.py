@@ -5,11 +5,13 @@ import graphene
 from graphene_sqlalchemy import SQLAlchemyObjectType, SQLAlchemyConnectionField
 from models import db_session, User as UserModel, Message as MessageModel
 from graphene import relay
-
+import utils
+from datetime import datetime
 # -> https://github.com/graphql-python/graphene-sqlalchemy/blob/master/docs/tutorial.rst
 
 GeoJson = json.load(open('buildings.geojson', encoding='utf-8'))
 OSM_ID_2_BUILDING = {}
+# -> тоже самое но id_house
 
 for bld_f in GeoJson['features']:
     bld = bld_f
@@ -26,6 +28,7 @@ class Geometry(graphene.ObjectType):
 
     def resolve_type(self, info):
         return self['type']
+
 
 class Building(graphene.ObjectType):
     osm_id = graphene.Float(required=True)
@@ -72,7 +75,7 @@ class Building(graphene.ObjectType):
 
 class User(SQLAlchemyObjectType):
 
-    user_id = graphene.Int(source="id")
+    user_id = graphene.Int(source='id')
     user_messages = graphene.List(lambda: Message)
 
     class Meta:
@@ -93,7 +96,7 @@ class UserConnection(relay.Connection):
 
 
 class Message(SQLAlchemyObjectType):
-    message_id = graphene.Int(source="id")
+    message_id = graphene.Int(source='id')
 
     class Meta:
         model = MessageModel
@@ -101,6 +104,7 @@ class Message(SQLAlchemyObjectType):
 
     def resolve_message_id(self, info):
         return self.message_id
+
 
 class MessageConnection(relay.Connection):
     class Meta:
@@ -135,4 +139,59 @@ class Query(graphene.ObjectType):
         return ab
 
 
-schema = graphene.Schema(query=Query)
+class UserAttribute:
+    first_name = graphene.String(description='First Name of the person.')
+    second_name = graphene.String(description='Second_Name of the person.')
+    
+
+class CreateUserInput(graphene.InputObjectType, UserAttribute):
+    pass
+
+class CreateUser(graphene.Mutation):
+    user = graphene.Field(lambda: User, description="User created by this mutation.")
+    class Arguments:
+        input = CreateUserInput(required=True)
+        
+    def mutate(self, info, input):
+        data = utils.input_to_dictionary(input)
+        user = UserModel(**data)
+        db_session.add(user)
+        db_session.commit()
+    return CreateUser(user=user)    
+        
+
+class MessageAttribute:
+    text = graphene.String(description='Text of the message')
+    user_id = graphene.ID(description='User ID')
+    reply_message_id = graphene.ID(description='Reply message ID')
+    date = graphene.Date(description='Date of the Message')
+
+
+class CreateMessageInput(graphene.InputObjectType, MessageAttribute):
+    pass
+
+
+class SendMessage(graphene.Mutation):
+    message = graphene.Field(lambda: Message, description='Message created by this mutation.')
+
+    class Arguments:
+        input = CreateMessageInput(required=True)
+    
+    def mutate(self, info, input):
+        data = utils.input_to_dictionary(input)
+        data['date'] = datetime.utcnow()
+
+        message = MessageModel(**data)
+        db_session.add(message)
+        db_session.commit()
+
+        return SendMessage(message = message)            
+    
+
+class Mutation:
+    send_message = SendMessage.Field()
+    create_user = CreateUser.Field()    
+
+
+schema = graphene.Schema(query=Query, mutation=Mutation)
+# -: https://github.com/alexisrolland/flask-graphene-sqlalchemy/wiki/Flask-Graphene-SQLAlchemy-Tutorial#add-graphql-mutations

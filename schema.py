@@ -141,7 +141,7 @@ class Query(graphene.ObjectType):
 
 class UserAttribute:
     first_name = graphene.String(description='First Name of the person.')
-    second_name = graphene.String(description='Second_Name of the person.')
+    second_name = graphene.String(description='Second Name of the person.')
     
 
 class CreateUserInput(graphene.InputObjectType, UserAttribute):
@@ -153,18 +153,19 @@ class CreateUser(graphene.Mutation):
         input = CreateUserInput(required=True)
         
     def mutate(self, info, input):
-        data = utils.input_to_dictionary(input)
+        data = input
         user = UserModel(**data)
         db_session.add(user)
         db_session.commit()
-    return CreateUser(user=user)    
+        
+        return CreateUser(user=user)    
         
 
 class MessageAttribute:
     text = graphene.String(description='Text of the message')
-    user_id = graphene.ID(description='User ID')
-    reply_message_id = graphene.ID(description='Reply message ID')
-    date = graphene.Date(description='Date of the Message')
+    user_id = graphene.Int(description='User ID')
+    reply_message_id = graphene.Int(description='Reply message ID', required=False)
+    # date = graphene.Date(description='Date of the Message')
 
 
 class CreateMessageInput(graphene.InputObjectType, MessageAttribute):
@@ -178,8 +179,8 @@ class SendMessage(graphene.Mutation):
         input = CreateMessageInput(required=True)
     
     def mutate(self, info, input):
-        data = utils.input_to_dictionary(input)
-        data['date'] = datetime.utcnow()
+        data = input
+            # data['date'] = datetime.utcnow()
 
         message = MessageModel(**data)
         db_session.add(message)
@@ -188,7 +189,7 @@ class SendMessage(graphene.Mutation):
         return SendMessage(message = message)            
     
 
-class Mutation:
+class Mutation(graphene.ObjectType):
     send_message = SendMessage.Field()
     create_user = CreateUser.Field()    
 

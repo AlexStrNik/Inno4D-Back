@@ -3,7 +3,7 @@ from sqlalchemy.orm import (scoped_session, sessionmaker, relationship, backref)
 from sqlalchemy.ext.declarative import declarative_base
 
 engine = create_engine('postgresql://inno4d:inno4d@localhost:5432/inno4d')
-db_session = scoped_session(sessionmaker(autocommit=True, autoflush=False, bind=engine))
+db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 Base = declarative_base()
 Base.query = db_session.query_property()

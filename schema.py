@@ -72,6 +72,22 @@ class Building(graphene.ObjectType):
     def resolve_street(self, info):
         return self['properties']['STREET']
 
+GeoJson_commerce = json.load(open('commerce.geojson', encoding='utf-8'))
+ID_COMMERCE = {}
+
+for com in GeoJson_commerce:
+    id_com = com['properties']['id']
+    ID_COMMERCE[id_com] = com
+
+class Commerce(graphene.ObjectType):
+    id = graphene.String(required = True)
+    type = graphene.String(required = False)
+    status = graphene.String(required = False)
+    rental_rate = graphene.Int(required = False)
+    address = graphene.String(required = False)
+    name = graphene.String(required = False)
+    p = graphene.Int(required = False)
+    id_house = graphene.Float(required = False)
 
 class User(SQLAlchemyObjectType):
 

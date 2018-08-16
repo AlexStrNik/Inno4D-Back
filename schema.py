@@ -89,6 +89,20 @@ class Commerce(graphene.ObjectType):
     p = graphene.Int(required = False)
     id_house = graphene.Float(required = False)
 
+    def resolve_id(self, info):
+        return self['properties']['id']
+
+    def resolve_type(self, info):
+        return self['properties']['Type']
+
+    def resolve_status(self, info):
+        return self['properties']['status']
+
+    def resolve_rental_rate(self, info):
+        return self['properties']['rental_rate']
+        
+    def resolve_address(self, info):
+        return self['properties']['rental_rate']
 class User(SQLAlchemyObjectType):
 
     user_id = graphene.Int(source='id')

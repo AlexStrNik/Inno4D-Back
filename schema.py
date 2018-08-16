@@ -7,7 +7,28 @@ from models import db_session, User as UserModel, Message as MessageModel
 from graphene import relay
 import utils
 from datetime import datetime
+import collections
 # -> https://github.com/graphql-python/graphene-sqlalchemy/blob/master/docs/tutorial.rst
+
+class SafeDict(collections.MutableMapping):
+
+    def __init__(self, dict):
+        self.store = dict  # use the free update to set keys
+
+    def __getitem__(self, key):
+        return self.store.get(key, None)
+
+    def __setitem__(self, key, value):
+        self.store[key] = value
+
+    def __delitem__(self, key):
+        del self.store[key]
+
+    def __iter__(self):
+        return iter(self.store)
+
+    def __len__(self):
+        return len(self.store)
 
 GeoJson = json.load(open('buildings.geojson', encoding='utf-8'))
 OSM_ID_2_BUILDING = {}
@@ -39,6 +60,7 @@ class Building(graphene.ObjectType):
     year = graphene.Int(required=False)
     construct = graphene.Int(required=False)
     spaces = graphene.Int(required=False)
+    commercies = graphene.List(lambda: Commerce)
     area = graphene.Int(required=False)
     geometry = graphene.Field(lambda: Geometry)
 
@@ -46,63 +68,85 @@ class Building(graphene.ObjectType):
         return self['geometry']
 
     def resolve_osm_id(self, info):
-        return self['properties']['OSM_ID']
+        return SafeDict(self['properties'])['OSM_ID']
 
     def resolve_house_number(self, info):
-        return self['properties']['A_HSNMBR']
+        return SafeDict(self['properties'])['A_HSNMBR']
 
     def resolve_b_levels(self, info):
-        return self['properties']['B_LEVELS']
+        return SafeDict(self['properties'])['B_LEVELS']
 
     def resolve_name(self, info):
-        return self['properties']['NAME']
+        return SafeDict(self['properties'])['NAME']
 
     def resolve_area(self, info):
-        return self['properties']['AREA']
+        return SafeDict(self['properties'])['AREA']
 
     def resolve_spaces(self, info):
-        return self['properties']['SPACES']
+        return SafeDict(self['properties'])['SPACES']
 
     def resolve_construct(self, info):
-        return self['properties']['CONSTRUCT']
+        return SafeDict(self['properties'])['CONSTRUCT']
 
     def resolve_year(self, info):
-        return self['properties']['YEAR']
+        return SafeDict(self['properties'])['YEAR']
+
+    def resolve_commercies(self, info):
+        id = int(SafeDict(self['properties'])['OSM_ID'])
+        if(OSM_ID_2_COMMERCE_LIST.get(id, None) != None):
+            return list(map(lambda v: ID_COMMERCE[v], OSM_ID_2_COMMERCE_LIST[id]))
+        return []
 
     def resolve_street(self, info):
-        return self['properties']['STREET']
+        return SafeDict(self['properties'])['STREET']
 
 GeoJson_commerce = json.load(open('commerce.geojson', encoding='utf-8'))
 ID_COMMERCE = {}
+OSM_ID_2_COMMERCE_LIST = {}
 
-for com in GeoJson_commerce:
+for com in GeoJson_commerce['features']:
     id_com = com['properties']['id']
     ID_COMMERCE[id_com] = com
+    if(OSM_ID_2_COMMERCE_LIST.get(com['properties']['id_house'], None) == None):
+        OSM_ID_2_COMMERCE_LIST[com['properties']['id_house']] = []
+    OSM_ID_2_COMMERCE_LIST[com['properties']['id_house']].append(com['properties']['id'])
+
+print(OSM_ID_2_COMMERCE_LIST)
 
 class Commerce(graphene.ObjectType):
-    id = graphene.String(required = True)
-    type = graphene.String(required = False)
-    status = graphene.String(required = False)
-    rental_rate = graphene.Int(required = False)
-    address = graphene.String(required = False)
-    name = graphene.String(required = False)
-    p = graphene.Int(required = False)
-    id_house = graphene.Float(required = False)
+    id = graphene.Int(required=True)
+    type = graphene.String(required=False)
+    status = graphene.String(required=False)
+    rental_rate = graphene.Int(required=False)
+    address = graphene.String(required=False)
+    name = graphene.String(required=False)
+    p = graphene.Int(required=False)
+    id_house = graphene.Float(required=False)
 
     def resolve_id(self, info):
-        return self['properties']['id']
+        return SafeDict(self['properties'])['id']
 
     def resolve_type(self, info):
-        return self['properties']['Type']
+        return SafeDict(self['properties'])['Type']
 
     def resolve_status(self, info):
-        return self['properties']['status']
+        return SafeDict(self['properties'])['status']
 
     def resolve_rental_rate(self, info):
-        return self['properties']['rental_rate']
+        return SafeDict(self['properties'])['rental_rate']
         
     def resolve_address(self, info):
-        return self['properties']['rental_rate']
+        return SafeDict(self['properties'])['address']
+    
+    def resolve_name(self, info):
+        return SafeDict(self['properties'])['Name']
+    
+    def resolve_p(self, info):
+        return SafeDict(self['properties'])['P']
+    
+    def resolve_id_house(self, info):
+        return SafeDict(self['properties'])['id_house']
+
 class User(SQLAlchemyObjectType):
 
     user_id = graphene.Int(source='id')
@@ -147,6 +191,9 @@ class Query(graphene.ObjectType):
     all_buildings = graphene.List(lambda: Building)
     building_by_id = graphene.Field(Building, required=True, osm_id=graphene.Float(required=True))                
     
+    all_commerce = graphene.List(lambda: Commerce)
+    commerce_by_id = graphene.Field(Commerce, required=True, id=graphene.Int(required=True))
+
     all_users = graphene.List(User)
     all_messages = graphene.List(Message)
 
@@ -164,7 +211,17 @@ class Query(graphene.ObjectType):
     def resolve_all_buildings(self, info):
         ab = []
         for k in OSM_ID_2_BUILDING:
-            ab.append(OSM_ID_2_BUILDING[k])
+            ab.append(SafeDict(OSM_ID_2_BUILDING[k]))
+        print(ab)
+        return ab
+    
+    def resolve_commerce_by_id(self, inf, id):
+        return ID_COMMERCE[id]
+
+    def resolve_all_commerce(self, info):
+        ab = []
+        for k in ID_COMMERCE:
+            ab.append(SafeDict(ID_COMMERCE[k]))
         print(ab)
         return ab
 

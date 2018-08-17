@@ -2,9 +2,11 @@ import graphene
 import geojson
 import json
 import graphene
+from JSON import JSON
 from graphene_sqlalchemy import SQLAlchemyObjectType, SQLAlchemyConnectionField
 from models import db_session, User as UserModel, Message as MessageModel
 from graphene import relay
+from graphene.types import generic
 import utils
 from datetime import datetime
 import collections
@@ -84,7 +86,7 @@ class Building(graphene.ObjectType):
 
     def resolve_spaces(self, info):
         return SafeDict(self['properties'])['SPACES']
-
+        
     def resolve_construct(self, info):
         return SafeDict(self['properties'])['CONSTRUCT']
 
@@ -113,6 +115,14 @@ for com in GeoJson_commerce['features']:
 
 print(OSM_ID_2_COMMERCE_LIST)
 
+class Geometry_com(graphene.ObjectType):
+    type = graphene.String(required=False)
+    coordinates = graphene.List(graphene.List(graphene.List(graphene.Float)))
+    def resolve_coordinates(self, info):
+        return self['coordinates']
+    def resolve_type(self, info):
+        return self['type']
+
 class Commerce(graphene.ObjectType):
     id = graphene.Int(required=True)
     type = graphene.String(required=False)
@@ -122,6 +132,7 @@ class Commerce(graphene.ObjectType):
     name = graphene.String(required=False)
     p = graphene.Int(required=False)
     id_house = graphene.Float(required=False)
+    geometry = graphene.Field(lambda: Geometry_com)
 
     def resolve_id(self, info):
         return SafeDict(self['properties'])['id']
@@ -146,6 +157,9 @@ class Commerce(graphene.ObjectType):
     
     def resolve_id_house(self, info):
         return SafeDict(self['properties'])['id_house']
+    
+    def resolve_geometry(self, info):
+        return self['geometry']
 
 class User(SQLAlchemyObjectType):
 
@@ -188,6 +202,7 @@ class MessageConnection(relay.Connection):
 class Query(graphene.ObjectType):
     node = relay.Node.Field()
 
+    buildings_json = graphene.Field(lambda: generic.GenericScalar)
     all_buildings = graphene.List(lambda: Building)
     building_by_id = graphene.Field(Building, required=True, osm_id=graphene.Float(required=True))                
     
@@ -196,6 +211,9 @@ class Query(graphene.ObjectType):
 
     all_users = graphene.List(User)
     all_messages = graphene.List(Message)
+
+    def resolve_buildings_json(self, args):
+        return GeoJson
 
     def resolve_all_users(self, context, **kwargs):
         user_query = User.get_query(context)
@@ -229,6 +247,7 @@ class Query(graphene.ObjectType):
 class UserAttribute:
     first_name = graphene.String(description='First Name of the person.')
     second_name = graphene.String(description='Second Name of the person.')
+    post = graphene.String(description='Post of the person.')
     
 
 class CreateUserInput(graphene.InputObjectType, UserAttribute):
@@ -252,7 +271,7 @@ class MessageAttribute:
     text = graphene.String(description='Text of the message')
     user_id = graphene.Int(description='User ID')
     reply_message_id = graphene.Int(description='Reply message ID', required=False)
-    # date = graphene.Date(description='Date of the Message')
+    date = graphene.Date(description='Date of the Message')
 
 
 class CreateMessageInput(graphene.InputObjectType, MessageAttribute):
@@ -267,7 +286,7 @@ class SendMessage(graphene.Mutation):
     
     def mutate(self, info, input):
         data = input
-            # data['date'] = datetime.utcnow()
+        data['date'] = datetime.utcnow()
 
         message = MessageModel(**data)
         db_session.add(message)

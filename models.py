@@ -18,6 +18,7 @@ class User(Base):
     id = Column(Integer, primary_key = true)
     first_name = Column(String)                    
     second_name = Column(String)
+    #  post = Column(String)
             
 
 class Message(Base):
@@ -39,9 +40,10 @@ class Message(Base):
 # -> Пасиб
 # -> вроде сработало !!
 # <- Ты просто убрал reply_id?  
-'''
-Base.metadata.create_all(engine) # -> тестим
 
+# Base.metadata.create_all(engine) # -> тестим
+
+'''
 tolya = User(first_name='Tolya', second_name='Werner')
 alex = User(first_name='Alex', second_name='Str')
 

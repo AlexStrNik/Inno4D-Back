@@ -247,7 +247,7 @@ class Query(graphene.ObjectType):
 class UserAttribute:
     first_name = graphene.String(description='First Name of the person.')
     second_name = graphene.String(description='Second Name of the person.')
-    post = graphene.String(description='Post of the person.')
+    # post = graphene.String(description='Post of the person.')
     
 
 class CreateUserInput(graphene.InputObjectType, UserAttribute):
@@ -266,7 +266,6 @@ class CreateUser(graphene.Mutation):
         
         return CreateUser(user=user)    
         
-
 class MessageAttribute:
     text = graphene.String(description='Text of the message')
     user_id = graphene.Int(description='User ID')

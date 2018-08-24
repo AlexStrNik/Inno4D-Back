@@ -2,7 +2,7 @@ from sqlalchemy import *
 from sqlalchemy.orm import (scoped_session, sessionmaker, relationship, backref)
 from sqlalchemy.ext.declarative import declarative_base
 
-engine = create_engine('postgresql://inno4d:inno4d@localhost:5432/inno4d')
+engine = create_engine('postgresql://inno4d:inno4d@localhost:5432/inno4d', pool_size=30, max_overflow=100)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 Base = declarative_base()
@@ -19,7 +19,12 @@ class User(Base):
     first_name = Column(String)                    
     second_name = Column(String)
     #  post = Column(String)
-            
+    login = Column(String)
+    is_admin = Column(Boolean)
+    is_new_user = Column(Boolean)
+    password = Column(String)
+    
+
 
 class Message(Base):
     __tablename__ = 'message'
